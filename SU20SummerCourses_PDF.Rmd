@@ -1,0 +1,485 @@
+---
+title: "SU20 Summer Individual Courses Ad Campaign"
+author: "Office of Marketing and Brand Management"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+
+```{r}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(hms)
+library(ggpubr)
+```
+
+
+# Basic Description:
+
+The Office of Marketing and Brand Management at the University of Southern Maine (USM) has been running digital ads promoting summer individual classes via  Google Ads CPC and Facebook and Instagram digital display. The campaign began February 24, 2020 and will run through July 3, 2020, with a 2 week hiatus, 5/15/20-6/1/20, to correspond with USM's 2 sessions
+
+# Findings
+
+```{r}
+
+FM_Orig <- read.csv("file:///Z:/DAA/Marketing/MKT_output.csv", header = T, stringsAsFactors = F)
+```
+
+
+```{r}
+wrongAds <- c("SU20_IG_DISP_ALL_SIC_S_1", "SU20_IG_DISP_ALL_SIC_S_2", "SU20_IG_DISP_ALL_SIC_S_3")
+```
+
+
+```{r}
+FM_Orig <- FM_Orig %>% 
+  mutate(Code_Vendor =  ifelse(Master_Adname %in% wrongAds, "FB", Code_Vendor), 
+         Code_Medium = ifelse(Master_Adname %in% wrongAds, "DISP", Code_Medium), 
+         Code_Product = ifelse(Code_Product == "S", Code_Audience, Code_Product), 
+         Code_Audience = ifelse(Master_Adname %in% wrongAds, "ALL", Code_Audience),
+         Code_Adnumber = ifelse(Master_Adname %in% wrongAds, Code_Interactivity, Code_Adnumber),
+         Code_Adnumber = ifelse(Master_Adname == "FA21_IG_DISP_ALL_CGCY_S__1", 1,ifelse(Master_Adname == "FA21_IG_DISP_ALL_CGCY_S__2", 2, ifelse(Master_Adname=="FA21_IG_DISP_ALL_CGCY_S__3", 3, ifelse(Master_Adname =="FA21_IG_DISP_ALL_CGCY_S__4",4,Code_Adnumber)))), Code_Interactivity = ifelse(Master_Adname %in% wrongAds, "S", Code_Interactivity) )
+
+```
+
+```{r eval=FALSE, include=FALSE}
+unique(names$Master_Adname)
+names <- FMNew %>%
+  group_by(Master_Adname) %>% summarise(I = sum(Master_Impressions), P = sum(Master_Unique_Pageviews))
+names
+```
+
+
+
+```{r}
+FM_Orig <- FM_Orig %>% 
+  filter(Code_Product == "SIC" & Code_RecruitingPeriod == "SU20") %>% 
+  rename(
+  Term = Code_RecruitingPeriod, 
+  Audience = Code_Audience, 
+  Product = Code_Product, 
+  Date = Master_Date
+                              )
+```
+
+
+
+
+```{r data 1}
+
+FM <- FM_Orig %>% filter(Master_Adname_Type == "NC" )
+FM <- FM %>% 
+  mutate(Audience = ifelse(Master_Adname == "FA20_BR_FB_VID__TL_UG_D_1", "TL", Audience), 
+         Product = ifelse(Master_Adname == "FA20_BR_FB_VID__TL_UG_D_1", "UG", Product), 
+         Term = ifelse(Term == " FA20", "FA20", Term)) %>%
+  select(1:8, 13, 15:19, 21:24, 26:29, 31:39, 41) %>% 
+  select(Date, Master_Landing_Page,everything())
+#FM <- FM %>% mutate_at(9:30, ~replace(., is.na(.), 0)) %>% mutate(Date = as.Date(Date, format = "%m/%d/%Y")) %>% arrange(Date)
+
+FM <- FM %>% 
+  mutate_at(10:31, ~replace(., is.na(.), 0)) %>% 
+  mutate(Date = as.Date(Date, format = "%Y-%m-%d"), 
+         Master_Results = as.numeric(Master_Results), 
+         Master_Engagements = as.numeric(Master_Engagements)
+         #,
+         #Product = ifelse(Product == "TL", "TR", Product)
+         ) %>% 
+  arrange(Date) %>% 
+  filter(Date > "2019-08-15")
+
+
+
+
+FM <- FM %>% mutate(Master_Landing_Page_1 =
+                      ifelse(grepl("advance", Master_Landing_Page), "/advance", 
+                             ifelse(grepl("here", Master_Landing_Page), "/here",
+                                    ifelse(grepl("excel", Master_Landing_Page), "/excel",
+                                           ifelse(grepl("regional", Master_Landing_Page), "/NEBBHE", 
+                                                  ifelse(grepl("cyber", Master_Landing_Page), "/cyber-security", 
+                                                         ifelse(grepl("muskie", Master_Landing_Page), "/muskie",
+                                                                ifelse(grepl("", Master_Landing_Page), "/blank",
+               ifelse(grepl("visit", Master_Landing_Page), "/visit","/other"
+                    ))))))))) %>% select(Date, Master_Landing_Page, Master_Landing_Page_1, everything())
+
+```
+
+```{r data 3}
+
+colorP <- c("#F6A704", "#0E1033","#4E7B14","#A92007","#D47E0A")
+ FMVM <- FM %>%
+   mutate(Product_Audience = paste0(Product, "_", Audience)) %>%
+   group_by(Term, Audience,Product, Code_Vendor, Code_Medium,Date) %>%
+   summarise(
+     Cost = round(sum(Master_Cost), 2),
+     Clicks = sum(Master_Clicks),
+     Impressions = round(sum(Master_Impressions),0),
+     #CTR = paste0(round(Clicks/Impressions * 100, 2), "%"),
+     Bounces = sum(Master_Bounces),
+     Sessions = sum(Master_Sessions),
+     UPV = sum(Master_Unique_Pageviews),
+     Views = sum(Master_Views),
+     Completions = sum(Master_Completions),
+     Master_Time_On_Page = sum(Master_Time_On_Page), 
+     Master_Pageviews = sum(Master_Pageviews), 
+     Master_Exits = sum(Master_Exits), 
+     #BounceRate = paste0(round(Bounces/Sessions * 100, 2), "%"),
+     Step1 = sum(Master_Time_On_Page)/(sum(Master_Pageviews)- sum(Master_Exits)),
+     Av_TOP = round_hms(as_hms(Step1), 5),
+     CTR = round(Clicks/Impressions * 100, 2),
+     BR = round(Bounces/Sessions * 100, 2),
+     ViewRate = round(Views/Impressions * 100, 2),
+     VTR = round(Completions/Impressions * 100, 2),
+     ClickableCompletions = sum(Master_Clickable_Completions),
+     ClickableCompRate = round(Clicks/ClickableCompletions * 100, 2), 
+     Swipes = sum(Master_Swipes), 
+     SwipeUpRatePct = round(Swipes/Impressions * 100, 2),
+     Opens = sum(Master_Clicks_To_Site),
+     CTOR = round(Opens/Clicks * 100, 2), 
+     Sends = sum(Master_Sends), 
+     LIOpens = sum(Master_Opens),
+     LIClicks = sum(Master_Clicks_Sponsored_InMail),
+     OpenRate = round(LIOpens/Sends * 100, 2), 
+     Engagements = sum(Master_Engagements),
+     Results = sum(Master_Results), 
+     EngagementRate = round(Engagements/Impressions * 100, 2),
+     EngRate = round((sum(LIOpens)+sum(Engagements))/sum(Sends)*100, 2), 
+     Avg_RR = round(sum(Results)/sum(Impressions) * 100, 2),
+     LICTOR = round(sum(LIClicks)/sum(LIOpens) * 100, 2)) %>%
+   select(Date, Impressions, Clicks, Bounces, Sessions, Swipes, CTR, SwipeUpRatePct, UPV, BR, Av_TOP, ClickableCompRate, VTR, CTOR,OpenRate, Sends, ViewRate, ClickableCompletions, Completions, Opens, LIOpens, LIClicks, Engagements, LICTOR, EngRate, EngagementRate, Master_Exits, Master_Pageviews, Master_Time_On_Page, Cost, Avg_RR, Results, Views, Completions)
+ 
+desiredRecruiting <- c("FA20", "FA21", "SU20")
+
+```
+
+
+### Facebook Display
+
+```{r fig.height=1.5, fig.width=8}
+data1 <- FMVM %>% 
+  filter( Code_Medium == "DISP" & Code_Vendor == "FB" & Term %in% desiredRecruiting & Impressions > 0 & Date < "2020-06-02" ) %>% 
+  group_by(Term, Product, Audience,Date) %>% 
+  summarise(
+    Impressions = sum(Impressions),
+    Cost = sum(Cost),
+    #Results = sum(Results),
+    CTR = Clicks/Impressions,
+    UPV = sum(UPV),
+    BR = Bounces/Sessions,
+    # OpenRate = LIOpens/Sends, 
+    # EngagementRate = Engagements/Impressions,
+    # BR = Bounces/Sessions, 
+    # ResultsRate = Results/Impressions, 
+    # ViewRate = round(Views/Impressions * 100, 2),
+    # VTR = round(Completions/Impressions *100, 2) 
+    )
+kable(data1 %>% group_by(Term, Product) %>% summarise(
+  Impressions = prettyNum(sum(Impressions), big.mark = "," ),
+  
+  CTR = paste0(round(mean(CTR) *100, 2), "%"),
+  UPV = prettyNum(sum(UPV), big.mark = "," ),
+  
+  BR = paste0(round(mean(BR) *100, 2), "%"), 
+  Cost = paste0("$",prettyNum(sum(Cost), big.mark = ","), ".00") ))
+```
+
+
+```{r fig.height=1.5, fig.width=8}
+PGCTR <- data1 %>%  
+    ggplot(aes(x = Date, y = CTR*100)) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank()) +
+    geom_hline(yintercept = c(0.45, 0.72), linetype="dashed") + ylab("CTR")
+  
+  PGImp <- data1 %>% 
+    ggplot(aes(x = Date, y = Impressions )) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    theme(axis.title.x=element_blank(),
+          axis.ticks.x=element_blank()) +  scale_fill_manual(values=c("#9999CC"))
+  
+  
+  PGUPV <- data1 %>% 
+    ggplot(aes(x = Date, y = UPV)) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())+  scale_fill_manual(values=c("#9999CC"))
+  
+  
+  
+  PGBR <- data1 %>% 
+    ggplot(aes(x = Date, y = BR)) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())+  scale_fill_manual(values=c("#9999CC"))
+  
+  
+  a <-  ggarrange(PGImp, PGCTR, PGUPV, PGBR, ncol=4, nrow=1, common.legend = TRUE, legend="right")
+  # annotate_figure(a, text_grob(paste0(data1$Term, "_ ", data1$Product, "_Facebook"), color = "darkblue", face = "plain", size = 18, just = "right"))
+  
+ a 
+  
+```
+
+---
+
+### Instagram Display
+
+```{r}
+data2 <- FMVM %>% 
+  filter( Code_Medium == "DISP" & Code_Vendor == "IG" & Term %in% desiredRecruiting & Impressions > 0 ) %>% 
+  group_by(Term, Product, Audience,Date) %>% 
+  summarise(
+    Impressions = sum(Impressions),
+    Cost = sum(Cost),
+    #Results = sum(Results),
+    CTR = Clicks/Impressions,
+    UPV = sum(UPV),
+    BR = Bounces/Sessions,
+    # OpenRate = LIOpens/Sends, 
+    # EngagementRate = Engagements/Impressions,
+    # BR = Bounces/Sessions, 
+    # ResultsRate = Results/Impressions, 
+    # ViewRate = round(Views/Impressions * 100, 2),
+    # VTR = round(Completions/Impressions *100, 2) 
+    )
+
+kable(data2 %>% group_by(Term, Product) %>% summarise(
+  Impressions = prettyNum(sum(Impressions), big.mark = "," ),
+  
+  CTR = paste0(round(mean(CTR) *100, 2), "%"),
+  UPV = prettyNum(sum(UPV), big.mark = "," ),
+  
+  BR = paste0(round(mean(BR) *100, 2), "%"), 
+  Cost = paste0("$",prettyNum(sum(Cost), big.mark = ",")) ))
+```
+
+
+
+```{r fig.height=1.5, fig.width=8}
+PGCTR <- data2 %>%  
+    ggplot(aes(x = Date, y = CTR*100)) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank()) +
+    geom_hline(yintercept = 0.16, linetype="dashed") +  ylab("CTR")
+  
+  PGImp <- data2 %>% 
+    ggplot(aes(x = Date, y = Impressions )) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    theme(axis.title.x=element_blank(),
+          axis.ticks.x=element_blank()) +  scale_fill_manual(values=c("#9999CC"))
+  
+  
+  PGUPV <- data2 %>% 
+    ggplot(aes(x = Date, y = UPV)) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())+  scale_fill_manual(values=c("#9999CC"))
+  
+  
+  
+  PGBR <- data2 %>% 
+    ggplot(aes(x = Date, y = BR * 100)) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())+ ylab("BR")
+  
+  
+  a <-  ggarrange(PGImp, PGCTR, PGUPV, PGBR, ncol=4, nrow=1, common.legend = TRUE, legend="right")
+  # annotate_figure(a, text_grob(paste0(data2$Term, "_ ", data2$Product, "_ ", data2$Audience, " "), color = "darkblue", face = "plain", size = 18, just = "right"))
+  # 
+ a 
+  
+```
+
+---
+
+#
+
+#
+
+### Optimized Display
+
+```{r fig.height=1.5, fig.width=8}
+data3 <- FMVM %>% 
+  filter( Code_Medium == "DISP" & Code_Vendor == "FB" & Term %in% desiredRecruiting & Impressions > 0 & Date > "2020-06-02" ) %>% 
+  group_by(Term, Product, Audience,Date) %>% 
+  summarise(
+    Impressions = sum(Impressions),
+    Cost = sum(Cost),
+    #Results = sum(Results),
+    CTR = Clicks/Impressions,
+    UPV = sum(UPV),
+    BR = Bounces/Sessions,
+    # OpenRate = LIOpens/Sends, 
+    # EngagementRate = Engagements/Impressions,
+    # BR = Bounces/Sessions, 
+    # ResultsRate = Results/Impressions, 
+    # ViewRate = round(Views/Impressions * 100, 2),
+    # VTR = round(Completions/Impressions *100, 2) 
+    )
+kable(data3 %>% group_by(Term, Product) %>% summarise(
+  Impressions = prettyNum(sum(Impressions), big.mark = "," ),
+  
+  CTR = paste0(round(mean(CTR) *100, 2), "%"),
+  UPV = prettyNum(sum(UPV), big.mark = "," ),
+  
+  BR = paste0(round(mean(BR) *100, 2), "%"), 
+  Cost = paste0("$",prettyNum(sum(Cost), big.mark = ",")) ))
+```
+
+
+```{r fig.height=1.5, fig.width=8}
+PGCTR <- data3 %>%  
+    ggplot(aes(x = Date, y = CTR*100)) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank()) +
+    geom_hline(yintercept = c(0.45, 0.72), linetype="dashed") + ylab("CTR")
+  
+  PGImp <- data3 %>% 
+    ggplot(aes(x = Date, y = Impressions )) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    theme(axis.title.x=element_blank(),
+          axis.ticks.x=element_blank()) +  scale_fill_manual(values=c("#9999CC"))
+  
+  
+  PGUPV <- data3 %>% 
+    ggplot(aes(x = Date, y = UPV)) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())+  scale_fill_manual(values=c("#9999CC"))
+  
+  
+  
+  PGBR <- data3 %>% 
+    ggplot(aes(x = Date, y = BR)) +
+    geom_line(color = "#323DA5") +
+    scale_color_manual(values = colorP) +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())+  scale_fill_manual(values=c("#9999CC"))
+  
+  
+  a <-  ggarrange(PGImp, PGCTR, PGUPV, PGBR, ncol=4, nrow=1, common.legend = TRUE, legend="right")
+  a
+  # annotate_figure(a, text_grob(paste0(data1$Term, "_ ", data1$Product, "_ ", data1$Audience, " "), color = "darkblue", face = "plain", size = 18, just = "right"))
+  
+  
+  
+```
+
+### AdWords CPC
+
+```{r fig.height=1.5, fig.width=8}
+
+adWords <- read.csv("C:/Users/christine.iyer/Box/SpecialProjects/FY20_SummerCourses/FY20_SUMMER.csv", header = T, stringsAsFactors = F)
+
+
+adWords <- adWords %>% filter(Source == "Google") %>%
+  mutate(
+    Date = as.Date(Week.of.Date, format = "%d-%b-%y"),
+    Time.on.Page = as.numeric(gsub("\\,", "", Time.on.Page)), 
+    Pageviews = as.numeric(gsub("\\,", "", Pageviews)), 
+    Impressions = as.numeric(gsub("\\,", "", Impressions))) %>% 
+  mutate_at(5:14, ~replace(., is.na(.), 0)) %>% 
+group_by(Date, Source) %>% summarise_at(vars(Bounces:Impressions), sum) %>% 
+  mutate(
+    
+    CTR = round(Clicks/Impressions*100,2), 
+    BR = round(Bounces/Sessions*100,2), 
+    Step1 = Time.on.Page/(Pageviews- Exits),
+    Av_TOP = round_hms(as_hms(Step1), 5)) %>% select(Source, Av_TOP,everything())
+#%>% 
+a <- ggplot(adWords, aes(x= Date, y = CTR))+ geom_line(color = "#323DA5")+theme_bw()+geom_hline(yintercept = c(1), linetype="dashed")+ 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())
+b <- ggplot(adWords, aes(x= Date, y = Impressions))+ geom_line(color = "#323DA5")+theme_bw()+ 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())
+c <- ggplot(adWords, aes(x= Date, y = Unique.Pageviews))+ geom_line(color = "#323DA5")+theme_bw()+ 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())
+d <- ggplot(adWords, aes(x= Date, y = BR))+ geom_line(color = "#323DA5")+theme_bw()+ 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.title.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.ticks.x=element_blank())
+
+a <-  ggarrange(b, a,c, d, ncol=4, nrow=1, common.legend = TRUE, legend="right")
+
+#kable(adWords)
+
+newAW <- adWords %>%
+  group_by(Source) %>% 
+summarise_at(vars(Bounces:Step1), sum) %>%
+        
+        mutate(
+  
+  
+  CTR = paste0(round(sum(Clicks)/sum(Impressions)*100,2), "%"),
+  UPV = prettyNum(sum(Unique.Pageviews), big.mark = "," ),
+  
+  BR = paste0(round(sum(Bounces)/sum(Sessions)*100,2), "%"), 
+  Cost = paste0("$",prettyNum(sum(Cost), big.mark = ",")),
+  Step1 = (sum(Time.on.Page)/(sum(Pageviews)- sum(Exits))),
+     Av_TOP = round_hms(as_hms(Step1), 5),
+  Impressions = prettyNum(Impressions, big.mark = "," )) %>% 
+    select(Source,Impressions, CTR, UPV, BR, Av_TOP, Cost)
+kable(newAW)
+
+a
+```
+
+
+# Conclusions
+
